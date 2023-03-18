@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFrameworks>net472;net6.0</TargetFrameworks>    
+    <LangVersion>preview</LangVersion>
+    <OtherFlags>$(OtherFlags)--warnon:3390</OtherFlags>
+    <!-- warnon:3390 is to verify xml docstrings https://devblogs.microsoft.com/dotnet/announcing-f-5/0improved-compiler-analysis-for-library-authors -->
+    <NeutralLanguage>en</NeutralLanguage>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!--to only have the english resources-->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>Jino</RootNamespace>
+    <AssemblyName>Jino</AssemblyName>
+    <AssemblyTitle>Jino</AssemblyTitle>
+    <Title>Jino</Title>
+    <Product>Jino</Product>
+    <PackageId>Jino</PackageId>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <FileVersion>1.0.0</FileVersion>
+    <PackageReleaseNotes>
+      - first release
+    </PackageReleaseNotes>
+    <Authors>GoswinR</Authors>
+    <Copyright>Goswin Rothenthal 2023</Copyright>
+    <Description>A JSON parser generator for F# and Fable. Extracted from FSharp.Data</Description>
+    <PackageDescription>A JSON parser generator for F# and Fable. Extracted from FSharp.Data</PackageDescription>
+    <!--used on nuget.org-->
+    <WarningLevel>5</WarningLevel>
+    <!-- WarningLevel 3 is default , see https://github.com/dsyme/fsharp-presentations/blob/master/design-notes/off-by-default-warnings.md -->
+    <Configuration>Release</Configuration>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <!-- <SymbolPackageFormat>snupkg</SymbolPackageFormat> -->    
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/goswinr/Jino</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/goswinr/Jino</RepositoryUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageIcon>logo128.png</PackageIcon>
+    <PackageReadmeFile>READMEnuget.md</PackageReadmeFile>    
+    <PackageTags>fsharp;json;fable;fable-library;fable-all</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+
+    <PackageReference Update="FSharp.Core" Version="4.7.2" />
+    <!-- otherwise the minimum FSharp.Core version would be forced by the SDK used for building it. this would be needlessly too high-->    
+    
+    <None Include="README.md" />
+    <None Include="Doc/READMEnuget.md" Pack="true" PackagePath="" />
+    <None Include="Doc/logo128.png" Pack="true" PackagePath="" />	  <!--so that it can be used with Fable-->
+
+    <Compile Include="JsonConversion.fs" />
+    <Compile Include="JsonValue.fs" />
+
+  </ItemGroup>
+</Project>

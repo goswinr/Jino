@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <IsPackable>false</IsPackable>    
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateProgramFile>false</GenerateProgramFile>
+    <OtherFlags>$(OtherFlags) --warnon:1182 --nowarn:44</OtherFlags>    
+    <Tailcalls>true</Tailcalls>
+  </PropertyGroup>
+
+  <ItemGroup> 
+    <ProjectReference Include="..\Jino.fsproj" />
+
+    <Compile Include="JsonValue.fs" />
+    <Compile Include="JsonParserProperties.fs" />
+    <Compile Include="JsonConversions.fs" />
+    <Compile Include="Program.fs" />
+
+  </ItemGroup>
+
+  <ItemGroup>
+	<PackageReference Include="NUnit" Version="3.13.3" />
+    <PackageReference Include="FsCheck" Version="2.16.5" />
+    <PackageReference Include="FsUnit" Version="5.2.0" />
+	<PackageReference Include="NUnit3TestAdapter" Version="4.4.2" />
+	<PackageReference Include="Microsoft.TestPlatform.TestHost" Version="17.5.0" />
+	<PackageReference Include="Microsoft.TestPlatform.ObjectModel" Version="17.5.0" />
+	<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.5.0" />
+	  
+  </ItemGroup>
+  
+</Project>

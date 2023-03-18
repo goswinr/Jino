@@ -1,0 +1,217 @@
+﻿
+namespace Jino
+
+open System
+open System.Globalization
+open System.Text.RegularExpressions
+
+[<AutoOpen>]
+module private Helpers =
+
+    /// Convert the result of TryParse to option type
+    let asOption =
+        function
+        | true, v -> Some v
+        | _       -> None
+
+    // let (|StringEqualsIgnoreCase|_|) (s1: string) s2 =
+    //     if s1.Equals(s2, StringComparison.OrdinalIgnoreCase) then
+    //         Some()
+    //     else
+    //         None
+
+    // let (|OneOfIgnoreCase|_|) set str =
+    //     if Array.exists (fun s -> StringComparer.OrdinalIgnoreCase.Compare(s, str) = 0) set then
+    //         Some()
+    //     else
+    //         None
+
+    // note on the regex we have /Date()/ and not \/Date()\/ because the \/ escaping
+    // is already taken care of before AsDateTime is called
+    let msDateRegex =
+        lazy Regex(@"^/Date\((-?\d+)([-+]\d+)?\)/$", RegexOptions.Compiled)
+
+
+    let ParseISO8601FormattedDateTime (text:string)  =
+        match DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces ||| DateTimeStyles.RoundtripKind) with
+        | true, d  -> Some d
+        | false, _ -> None
+
+    let inline inRangeDecimal lo hi (v: decimal) : bool = (v >= decimal lo) && (v <= decimal hi)
+    let inline inRangeFloat lo hi (v: float) : bool = (v >= float lo) && (v <= float hi)
+    let inline isIntegerDecimal (v: decimal) : bool = Math.Round v = v
+    let inline isIntegerFloat (v: float) : bool = Math.Round v = v
+
+// --------------------------------------------------------------------------------------
+
+/// Conversions from string to string/int/int64/decimal/float/boolean/datetime/timespan/guid options
+type TextConversions private () =
+    (*
+
+    /// `NaN` `NA` `N/A` `#N/A` `:` `-` `TBA` `TBD`
+    static member val DefaultMissingValues = [| "NaN"; "NA"; "N/A"; "#N/A"; ":"; "-"; "TBA"; "TBD" |]
+
+    /// `%` `‰` `‱`
+    static member val DefaultNonCurrencyAdorners = [| ' ' ; '%'; '‰'; '‱' |] |> Set.ofArray
+
+    /// `¤` `$` `¢` `£` `¥` `₱` `﷼` `₤` `₭` `₦` `₨` `₩` `₮` `€` `฿` `₡` `៛` `؋` `₴` `₪` `₫` `₹` `ƒ`
+    static member val DefaultCurrencyAdorners =
+        [| '¤'
+           '$'
+           '¢'
+           '£'
+           '¥'
+           '₱'
+           '﷼'
+           '₤'
+           '₭'
+           '₦'
+           '₨'
+           '₩'
+           '₮'
+           '€'
+           '฿'
+           '₡'
+           '៛'
+           '؋'
+           '₴'
+           '₪'
+           '₫'
+           '₹'
+           'ƒ' |]
+        |> Set.ofArray
+
+    static member val private DefaultRemovableAdornerCharacters =
+        Set.union TextConversions.DefaultNonCurrencyAdorners TextConversions.DefaultCurrencyAdorners
+
+    //This removes any adorners that might otherwise cause the inference to infer string. A notable a change is
+    //Currency Symbols are now treated as an Adorner like a '%' sign thus are now independent
+    //of the culture. Which is probably better since we have lots of scenarios where we want to
+    //consume values prefixed with € or $ but in a different culture.
+    static member private RemoveAdorners(value: string) =
+        String(
+            value.ToCharArray()
+            |> Array.filter (
+                not
+                << TextConversions.DefaultRemovableAdornerCharacters.Contains
+            )
+        )
+    *)
+
+    /// Turns empty or null string value into None, otherwise returns Some
+    static member AsString str =
+        if String.IsNullOrWhiteSpace str then None else Some str
+
+    static member AsInteger (text:string) =
+        Int32.TryParse (text, NumberStyles.Integer, CultureInfo.InvariantCulture) // (TextConversions.RemoveAdorners text)
+        |> asOption
+
+    static member AsInteger64 (text:string)  =
+        Int64.TryParse (text, NumberStyles.Integer, CultureInfo.InvariantCulture) //(TextConversions.RemoveAdorners text)
+        |> asOption
+
+    static member AsDecimal (text:string)  =
+        Decimal.TryParse text //(TextConversions.RemoveAdorners text )
+        |> asOption
+
+    /// if useNoneForMissingValues is true, NAs are returned as None, otherwise Some Double.NaN is used
+    static member AsFloat useNoneForMissingValues (text: string) =    
+        // match text.Trim() with
+        // | OneOfIgnoreCase missingValues -> if useNoneForMissingValues then None else Some Double.NaN
+        // | _ ->
+            Double.TryParse(text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture)
+            |> asOption
+            |> Option.bind (fun f ->
+                if useNoneForMissingValues && Double.IsNaN f then
+                    None
+                else
+                    Some f)
+    
+    /// also parses "true" "false" "yes" "no" "1" and "0"
+    static member AsBoolean(text: string) =
+        match text.Trim() with
+        | "true"
+        | "True"
+        | "TRUE"
+        | "yes"
+        | "Yes"
+        | "YES"
+        | "1" -> Some true
+
+        | "false"
+        | "False"
+        | "FALSE"
+        | "no"
+        | "No"
+        | "NO"
+        | "0" -> Some false
+
+        // | StringEqualsIgnoreCase "true"
+        // | StringEqualsIgnoreCase "yes"
+        // | StringEqualsIgnoreCase "1" -> Some true
+        // | StringEqualsIgnoreCase "false"
+        // | StringEqualsIgnoreCase "no"
+        // | StringEqualsIgnoreCase "0" -> Some false
+        | _ -> None
+
+    /// Parse date time using either the JSON milliseconds format or using ISO 8601
+    /// that is, either `/Date(<msec-since-1/1/1970>)/` or something
+    /// along the lines of `2013-01-28T00:37Z`
+    static member AsDateTime  (text: string) =
+        // Try parse "Date(<msec>)" style format
+        let matchesMS = msDateRegex.Value.Match(text.Trim())
+
+        if matchesMS.Success then
+            matchesMS.Groups.[1].Value
+            |> Double.Parse
+            |> DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddMilliseconds
+            |> Some
+        else
+            // Parse ISO 8601 format, fixing time zone if needed
+            match ParseISO8601FormattedDateTime text  with
+            | Some d when d.Kind = DateTimeKind.Unspecified -> new DateTime(d.Ticks, DateTimeKind.Local) |> Some
+            | x -> x
+
+    static member AsDateTimeOffset  (text: string) =
+        // get TimeSpan presentation from 4-digit integers like 0000 or -0600
+        let getTimeSpanFromHourMin (hourMin: int) =
+            let hr = (hourMin / 100) |> float |> TimeSpan.FromHours
+            let min = (hourMin % 100) |> float |> TimeSpan.FromMinutes
+            hr.Add min
+
+        let offset (str:string) =
+            match Int32.TryParse str with
+            | true, v -> getTimeSpanFromHourMin v |> Some
+            | false, _ -> None
+
+        let matchesMS = msDateRegex.Value.Match(text.Trim())
+
+        if matchesMS.Success
+           && matchesMS.Groups.[2].Success
+           && matchesMS.Groups.[2].Value.Length = 5 then
+            // only if the timezone offset is specified with '-' or '+' prefix, after the millis
+            // e.g. 1231456+1000, 123123+0000, 123123-0500, etc.
+            match offset matchesMS.Groups.[2].Value with
+            | Some ofst ->
+                matchesMS.Groups.[1].Value
+                |> Double.Parse
+                |> DateTimeOffset(1970, 1, 1, 0, 0, 0, ofst).AddMilliseconds
+                |> Some
+            | None -> None
+        else
+            match ParseISO8601FormattedDateTime text  with
+            | Some d when d.Kind <> DateTimeKind.Unspecified ->
+                match DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces ||| DateTimeStyles.RoundtripKind) with
+                | true, dto -> dto |> Some
+                | false, _ -> None
+            | _ -> None
+
+    static member AsTimeSpan  (text: string) =
+        match TimeSpan.TryParse(text,CultureInfo.InvariantCulture) with
+        | true, t -> Some t
+        | _ -> None
+
+    static member AsGuid(text: string) = 
+        Guid.TryParse(text.Trim()) |> asOption
+
+
